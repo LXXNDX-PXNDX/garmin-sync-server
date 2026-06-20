@@ -1,0 +1,18 @@
+{
+  "name": "garmin-sync-server",
+  "version": "1.0.0",
+  "description": "Lokaler/Cloud-Server, der Garmin Connect Tageswerte für das VITALS-Dashboard bereitstellt",
+  "main": "server.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "garmin-connect": "^1.6.1"
+  }
+}
