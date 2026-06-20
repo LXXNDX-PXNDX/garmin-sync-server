@@ -8,6 +8,7 @@ const { GarminConnect } = require('garmin-connect');
 const app = express();
 app.use(cors()); // erlaubt dem Dashboard (jede Domain) den Zugriff
 app.use(express.json());
+app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 const CACHE_FILE = path.join(__dirname, 'cache.json');
