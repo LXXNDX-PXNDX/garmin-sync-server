@@ -8,11 +8,14 @@ const { GarminConnect } = require('garmin-connect');
 const app = express();
 app.use(cors()); // erlaubt dem Dashboard (jede Domain) den Zugriff
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
 
 const PORT = process.env.PORT || 3000;
 const CACHE_FILE = path.join(__dirname, 'cache.json');
 const CACHE_TTL_MS = 15 * 60 * 1000; // 15 Minuten zwischen echten Garmin-Abfragen pro Tag
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const INDEX_FILE = path.join(PUBLIC_DIR, 'index.html');
+
+app.use(express.static(PUBLIC_DIR));
 
 let gc = null;
 let displayName = null;
@@ -169,6 +172,16 @@ app.get('/api/history', async (req, res) => {
     console.error(e);
     res.status(500).json({ error: e.message, partial: out });
   }
+});
+
+/* ---------- Dashboard-Fallback ---------- */
+app.get('/', (req, res) => {
+  res.sendFile(INDEX_FILE);
+});
+
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/') || req.path === '/health') return next();
+  res.sendFile(INDEX_FILE);
 });
 
 app.listen(PORT, () => console.log(`Garmin-Sync-Server läuft auf Port ${PORT}`));
