@@ -21,6 +21,11 @@ let gc = null;
 let displayName = null;
 let loginPromise = null;
 
+/* ---------- Hilfsfunktion: Pause zwischen Garmin-Anfragen ---------- */
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 /* ---------- Login (mit Wiederverwendung der Session) ---------- */
 async function ensureLogin() {
   if (gc && displayName) return;
@@ -89,11 +94,12 @@ async function fetchDay(dateStr) {
   } catch (e) {
     console.error(`[${dateStr}] Tagesübersicht-Fehler:`, e.message);
   }
+  await sleep(400); // Pause zwischen den einzelnen Garmin-Endpunkten
 
   // 2) Schlaf
   try {
-    const sleep = await gc.getSleepData(new Date(d + 'T00:00:00'));
-    const dto = sleep && (sleep.dailySleepDTO || sleep);
+    const sleep_ = await gc.getSleepData(new Date(d + 'T00:00:00'));
+    const dto = sleep_ && (sleep_.dailySleepDTO || sleep_);
     const seconds = pick(dto, ['sleepTimeSeconds', 'sleepSeconds']);
     if (seconds) result.sleepHours = +(seconds / 3600).toFixed(2);
     const overall = dto && dto.sleepScores && dto.sleepScores.overall;
@@ -102,6 +108,7 @@ async function fetchDay(dateStr) {
   } catch (e) {
     console.error(`[${dateStr}] Schlaf-Fehler:`, e.message);
   }
+  await sleep(400);
 
   // 3) HRV (separater interner Endpunkt, nicht offiziell dokumentiert -> kann brechen)
   try {
@@ -113,6 +120,7 @@ async function fetchDay(dateStr) {
   } catch (e) {
     // HRV ist oft nicht verfügbar (Gerät/Account-abhängig) -- kein Abbruch
   }
+  await sleep(400);
 
   // 4) Ø Herzfrequenz über den Tag (best effort)
   try {
@@ -149,7 +157,8 @@ app.get('/api/today', async (req, res) => {
 });
 
 app.get('/api/history', async (req, res) => {
-  const days = Math.min(parseInt(req.query.days || '14', 10), 60);
+  // Standard von 14 auf 7 Tage reduziert, um den Erst-Burst an Garmin-Anfragen kleinzuhalten
+  const days = Math.min(parseInt(req.query.days || '7', 10), 30);
   const cache = readCache();
   const out = [];
   try {
@@ -163,10 +172,11 @@ app.get('/api/history', async (req, res) => {
         entry = await fetchDay(dateStr);
         entry._fetchedAt = Date.now();
         cache[dateStr] = entry;
+        writeCache(cache); // nach jedem Tag sichern, falls später ein Tag fehlschlägt
+        await sleep(1500); // Pause zwischen kompletten Tagesabfragen
       }
       out.push(entry);
     }
-    writeCache(cache);
     res.json(out);
   } catch (e) {
     console.error(e);
